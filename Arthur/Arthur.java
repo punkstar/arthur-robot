@@ -42,6 +42,7 @@ public class Arthur {
 		this._headMotor = Motor.C;
 		
 		this._headMotor.resetTachoCount();
+		this._headMotor.setSpeed(1440);
 		
 		this._pilot = new TachoPilot(0.56f, 1.18f, this._leftMotor, this._rightMotor);
 	}
@@ -102,9 +103,10 @@ public class Arthur {
 	}
 	
 	protected void _moveHead() {
-		this._headMotor.rotate(75);
-		this._headMotor.rotate(-(75*2));
-		this._headMotor.rotate(75);
+		int rotation = 4000;
+		this._headMotor.rotate(rotation);
+		this._headMotor.rotate(-(rotation*2));
+		this._headMotor.rotate(rotation);
 	}
 	
 	protected boolean _isCollisionLeft() {
