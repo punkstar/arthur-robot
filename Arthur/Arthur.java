@@ -20,6 +20,8 @@ public class Arthur {
 	protected static final int COLLISION_RIGHT = 4;
 	protected static final int COLLISION_BOTH = 5;
 	
+	protected static final int ROTATE_90 = 4800;
+	
 	protected Pilot _pilot;
 	
 	protected TouchSensor _leftBumper;
@@ -37,9 +39,9 @@ public class Arthur {
 		
 		this._headSensor = new UltrasonicSensor(SensorPort.S3);
 		
-		this._leftMotor = Motor.B;
-		this._rightMotor = Motor.A;
-		this._headMotor = Motor.C;
+		this._leftMotor = Motor.A;
+		this._rightMotor = Motor.C;
+		this._headMotor = Motor.B;
 		
 		this._headMotor.resetTachoCount();
 		this._headMotor.setSpeed(1440);
@@ -71,7 +73,7 @@ public class Arthur {
 				this._sleep(500);
 				
 				this._log("Reversing..");
-				this._pilot.travel(-5);
+				this._pilot.travel(-1);
 				
 				this._sleep(500);
 				
@@ -99,7 +101,15 @@ public class Arthur {
 	}
 	
 	protected void _handleHeadOnCollision() {
-		
+		int data = 255;
+		this._headMotor.rotate(ROTATE_90, true);
+		while (this._headMotor.isMoving()) {
+			this._headSensor.ping();
+			data = this._headSensor.getDistance();
+			this._log("Dist: "+data);
+		}
+		this._headMotor.rotate(-ROTATE_90*2);
+		this._headMotor.rotate(ROTATE_90);
 	}
 	
 	protected void _moveHead() {
