@@ -7,12 +7,18 @@ import lejos.nxt.UltrasonicSensor;
 import lejos.robotics.navigation.Pilot;
 import lejos.robotics.navigation.TachoPilot;
 
-public class Nick {
+import java.lang.InterruptedException;
+
+public class Arthur {
 	public static void main(String[] args) {
-		Nick nick = new Nick();
+		Arthur arthur = new Arthur();
 		
-		nick.deliberate();
+		arthur.deliberate();
     }
+	
+	protected static final int COLLISION_LEFT = 3;
+	protected static final int COLLISION_RIGHT = 4;
+	protected static final int COLLISION_BOTH = 5;
 	
 	protected Pilot _pilot;
 	
@@ -25,20 +31,19 @@ public class Nick {
 	protected Motor _rightMotor;
 	protected Motor _headMotor;
 	
-	public Nick() {
+	public Arthur() {
 		this._leftBumper = new TouchSensor(SensorPort.S4);
 		this._rightBumper = new TouchSensor(SensorPort.S1);
 		
 		this._headSensor = new UltrasonicSensor(SensorPort.S3);
 		
-		this._leftMotor = Motor.C;
+		this._leftMotor = Motor.B;
 		this._rightMotor = Motor.A;
-		this._headMotor = Motor.B;
+		this._headMotor = Motor.C;
 		
 		this._headMotor.resetTachoCount();
 		
-		/** second parameter is approximate to the track width */
-		this._pilot = new TachoPilot(2.2f, 8.66f, this._leftMotor, this._rightMotor);
+		this._pilot = new TachoPilot(0.56f, 1.18f, this._leftMotor, this._rightMotor);
 	}
 	
 	public void deliberate() {
@@ -46,33 +51,54 @@ public class Nick {
 			if (this._isCollisionLeft() || this._isCollisionRight()) {
 				this._log("Stop");
 				this._pilot.stop();
+				
+				this._sleep(500);
 
-				int collision_side = 0;
+				int collision = 0;
 				
-				if (this._isCollisionLeft()) {
-					collision_side = 2;
+				if (this._isCollisionBoth()) {
+					this._log("Collision both");
+					collision = COLLISION_BOTH;
+				} else if (this._isCollisionLeft()) {
+					this._log("Collision left");
+					collision = COLLISION_LEFT;
 				} else if (this._isCollisionRight()) {
-					collision_side = 3;
+					this._log("Collision right");
+					collision = COLLISION_RIGHT;
 				}
 				
-				this._log("Reverse");
-				this._pilot.travel(-2);
+				this._sleep(500);
 				
-				if (collision_side == 2) {
-					this._log("Rotating right");
-					this._pilot.rotate(-15);
-				} else if (collision_side == 3) {
-					this._log("Rotating left");
-					this._pilot.rotate(15);
+				this._log("Reversing..");
+				this._pilot.travel(-5);
+				
+				this._sleep(500);
+				
+				switch (collision) {
+					case COLLISION_BOTH:
+						this._handleHeadOnCollision();
+						break;
+					case COLLISION_LEFT:
+						this._log("Rotating right");
+						this._pilot.rotate(-30);
+						break;
+					case COLLISION_RIGHT:
+					default:
+						this._log("Rotating left");
+						this._pilot.rotate(30);
+						break;
 				}
 				
-//				this._log("Looking");
-//				this._moveHead();
+				
 			} else {
-				this._log("Forward");
+				this._log("Forward..");
 				this._pilot.forward();
 			}
 		}
+	}
+	
+	protected void _handleHeadOnCollision() {
+		
 	}
 	
 	protected void _moveHead() {
@@ -82,11 +108,15 @@ public class Nick {
 	}
 	
 	protected boolean _isCollisionLeft() {
-		return this._leftBumper.isPressed() && this._log("Collision left");
+		return this._leftBumper.isPressed();
 	}
 	
 	protected boolean _isCollisionRight() {
-		return this._rightBumper.isPressed() && this._log("Collision right");
+		return this._rightBumper.isPressed();
+	}
+	
+	protected boolean _isCollisionBoth() {
+		return this._isCollisionLeft() && this._isCollisionRight();
 	}
 	
 	protected boolean _log(String message) {
@@ -95,5 +125,11 @@ public class Nick {
 		LCD.drawString(message, 0, 1);
 		
 		return true;
+	}
+	
+	protected void _sleep(long ms) {
+		try {
+			Thread.sleep(ms);
+		} catch (InterruptedException e) {}
 	}
 }

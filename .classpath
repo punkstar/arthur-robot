@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
 	<classpathentry excluding="build.xml" kind="src" path="BlueStats"/>
+	<classpathentry kind="src" path="Arthur"/>
 	<classpathentry combineaccessrules="false" kind="src" path="/classes"/>
 	<classpathentry kind="lib" path="/Users/nrj/lejos_nxj/lib/classes.jar"/>
 	<classpathentry kind="lib" path="/Users/nrj/lejos_nxj/3rdparty/lib/bluecove-gpl.jar"/>
 	<classpathentry kind="lib" path="/Users/nrj/lejos_nxj/3rdparty/lib/bluecove.jar"/>
-	<classpathentry excluding="build.xml" kind="src" path="Nick"/>
 	<classpathentry kind="output" path="build"/>
 </classpath>
