@@ -80,6 +80,37 @@ public class Arthur {
 	}
 	
 	protected void _actStartup() {
+		int closestDistance = 255;
+		int closestTacho = 0;
+		int measurement = 255;
+		
+		while (this._headMotor.isMoving()) {
+		}
+		
+		this._headMotor.rotate(ROTATE_90, true);
+		while (this._headMotor.isMoving()) {
+			measurement = this._headSensor.getDistance();
+			if (measurement < closestDistance) {
+				closestDistance = measurement;
+				closestTacho = this._headMotor.getTachoCount();
+			}
+		}
+		this._headMotor.rotate(-ROTATE_90);
+		this._headMotor.rotate(-ROTATE_90, true);
+		while (this._headMotor.isMoving()) {
+			measurement = this._headSensor.getDistance();
+			if (measurement < closestDistance) {
+				closestDistance = measurement;
+				closestTacho = this._headMotor.getTachoCount();
+			}
+		}
+		this._headMotor.rotate(ROTATE_90, true);
+		
+		int angle = 90 * closestTacho / ROTATE_90;
+		this._log("Angle: "+angle);
+		
+		this._sleep(10000);
+		System.exit(0);
 	}
 	
 	protected void _actCollisionBoth() {
@@ -99,13 +130,6 @@ public class Arthur {
 		}
 		this._headMotor.rotate(-ROTATE_90*2);
 		this._headMotor.rotate(ROTATE_90);
-	}
-	
-	protected void _moveHead() {
-		int rotation = 4000;
-		this._headMotor.rotate(rotation);
-		this._headMotor.rotate(-(rotation*2));
-		this._headMotor.rotate(rotation);
 	}
 	
 	protected boolean _isCollisionLeft() {
