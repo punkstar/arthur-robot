@@ -16,6 +16,7 @@ public class Arthur {
 		arthur.deliberate();
     }
 	
+	protected static final int COLLISION_NONE = 0;
 	protected static final int COLLISION_LEFT = 3;
 	protected static final int COLLISION_RIGHT = 4;
 	protected static final int COLLISION_BOTH = 5;
@@ -53,28 +54,31 @@ public class Arthur {
 		this._actStartup();
 		
 		while(!this._shouldQuit()) {
-			int collision = 0;
-			if (this._isCollisionBoth()) {
-				this._log("Collision both");
-				collision = COLLISION_BOTH;
-			} else if (this._isCollisionLeft()) {
-				this._log("Collision left");
-				collision = COLLISION_LEFT;
-			} else if (this._isCollisionRight()) {
-				this._log("Collision right");
-				collision = COLLISION_RIGHT;
-			}
-			
-			switch (collision) {
-				case COLLISION_BOTH:
+			if (this._isCollisionLeft() || this._isCollisionRight()) {
+				this._pilot.stop();
+				int collision = COLLISION_NONE;
+				
+				this._sleep(500);
+				
+				if (this._isCollisionBoth()) {
+					this._log("Collision both");
+					collision = COLLISION_BOTH;
 					this._actCollisionBoth();
-					break;
-				case COLLISION_LEFT:
-				case COLLISION_RIGHT:
-				default:
+				} else if (this._isCollisionLeft()) {
+					this._log("Collision left");
+					collision = COLLISION_LEFT;
 					this._actCollisionSingle(collision);
-					break;
-			}			
+				} else if (this._isCollisionRight()) {
+					this._log("Collision right");
+					collision = COLLISION_RIGHT;
+					this._actCollisionSingle(collision);
+				} else {
+					this._log("No collision?!");
+					this._pilot.forward();
+				}
+			} else {
+				this._log("Moving along");
+			}
 		}
 		
 	}
@@ -121,19 +125,22 @@ public class Arthur {
 	}
 	
 	protected void _actCollisionSingle(int side) {
-	}
-	
-	
-	protected void _handleHeadOnCollision() {
-		int data = 255;
-		this._headMotor.rotate(ROTATE_90, true);
-		while (this._headMotor.isMoving()) {
-			this._headSensor.ping();
-			data = this._headSensor.getDistance();
-			this._log("Dist: "+data);
+		int angle = 0;
+		if (side == COLLISION_LEFT) {
+			angle = -30;
+			this._log("Colision left.");
+		} else if (side == COLLISION_RIGHT) {
+			angle = 30;
+			this._log("Colision right.");
+		} else {
+			// FAIL
+			this._log("OMGWTFBBQ!");
 		}
-		this._headMotor.rotate(-ROTATE_90*2);
-		this._headMotor.rotate(ROTATE_90);
+		
+		this._pilot.travel(-1); // in wheel rotations
+		this._pilot.rotate(angle);
+		
+		this._pilot.forward();
 	}
 	
 	protected boolean _isCollisionLeft() {
