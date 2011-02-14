@@ -84,6 +84,8 @@ public class Arthur {
 		int closestTacho = 0;
 		int measurement = 255;
 		
+		this._log("Starting up");
+		
 		while (this._headMotor.isMoving()) {
 		}
 		
@@ -95,6 +97,7 @@ public class Arthur {
 				closestTacho = this._headMotor.getTachoCount();
 			}
 		}
+		this._log("LS - "+closestDistance+" @ "+closestTacho);
 		this._headMotor.rotate(-ROTATE_90);
 		this._headMotor.rotate(-ROTATE_90, true);
 		while (this._headMotor.isMoving()) {
@@ -104,13 +107,14 @@ public class Arthur {
 				closestTacho = this._headMotor.getTachoCount();
 			}
 		}
-		this._headMotor.rotate(ROTATE_90, true);
+		this._log("RS - "+closestDistance+" @ "+closestTacho);
+		this._headMotor.rotate(ROTATE_90);
 		
 		int angle = 90 * closestTacho / ROTATE_90;
 		this._log("Angle: "+angle);
 		
-		this._sleep(10000);
-		System.exit(0);
+		this._pilot.rotate(angle);
+		this._pilot.forward();
 	}
 	
 	protected void _actCollisionBoth() {
