@@ -48,7 +48,7 @@ public class Arthur {
 	
 	public void deliberate() {
 		while(!Button.ESCAPE.isPressed()) {
-			if (this._isCollisionLeft() || this._isCollisionRight()) {
+			if ((this._isCollisionLeft() || this._isCollisionRight()) && (this._leftMotor.isMoving() || this._rightMotor.isMoving())) {
 				this._log("Stop");
 				this._pilot.stop();
 				
