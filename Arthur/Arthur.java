@@ -120,11 +120,11 @@ public class Arthur {
 	}
 	
 	protected boolean _isCollisionLeft() {
-		return this._leftBumper.isPressed();
+		return this._leftBumper.isPressed() || this._leftMotor.isStopped();
 	}
 	
 	protected boolean _isCollisionRight() {
-		return this._rightBumper.isPressed();
+		return this._rightBumper.isPressed() || this._rightMotor.isStopped();
 	}
 	
 	protected boolean _isCollisionBoth() {
