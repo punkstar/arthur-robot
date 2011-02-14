@@ -22,7 +22,7 @@ public class Arthur {
 	protected static final int COLLISION_BOTH = 5;
 	
 	// This is the value, in tachos, of a 90 degress rotation from 0 tachos
-	protected static final int ROTATE_90 = 4800;
+	protected static final int DEGREES_90 = 4800;
 	
 	protected Pilot _pilot;
 	
@@ -67,23 +67,23 @@ public class Arthur {
 				this._sleep(500);
 				
 				if (this._isCollisionBoth()) {
-					this._log("Collision both");
+					this._log("COLLISION: BOTH");
 					collision = COLLISION_BOTH;
 					this._actCollisionBoth();
 				} else if (this._isCollisionLeft()) {
-					this._log("Collision left");
+					this._log("COLLISION: LEFT");
 					collision = COLLISION_LEFT;
 					this._actCollisionSingle(collision);
 				} else if (this._isCollisionRight()) {
-					this._log("Collision right");
+					this._log("COLLISION: RIGHT");
 					collision = COLLISION_RIGHT;
 					this._actCollisionSingle(collision);
 				} else {
-					this._log("No collision?!");
+					this._log("COLLISION: NONE!?");
 					this._pilot.forward();
 				}
 			} else {
-				this._log("Moving along");
+				this._log("MOVING");
 			}
 		}
 		
@@ -96,10 +96,10 @@ public class Arthur {
 	 * We aim to find the nearest object, based on a 180 scan of our surroundings, then move towards it.
 	 */
 	protected void _actStartup() {
-		this._log("Starting up");
+		this._log("ACT: STARTUP");
 		
-		int angle = this._tachoToDegrees(this._headScan(ROTATE_90, true));
-		this._log("Angle: "+angle);
+		int angle = this._tachoToDegrees(this._scanRange(DEGREES_90, true));
+		this._log("ANGLE: " + angle);
 		
 		this._pilot.rotate(angle);
 		this._pilot.forward();
@@ -120,13 +120,13 @@ public class Arthur {
 		int angle = 0;
 		if (side == COLLISION_LEFT) {
 			angle = -30;
-			this._log("Colision left.");
+			this._log("ACT: COLLISION L");
 		} else if (side == COLLISION_RIGHT) {
 			angle = 30;
-			this._log("Colision right.");
+			this._log("ACT: COLLISION R");
 		} else {
 			// FAIL
-			this._log("OMGWTFBBQ!");
+			this._log("ACT: OMGWTFBBQ!");
 		}
 		
 		this._pilot.travel(-1); // in wheel rotations
@@ -143,8 +143,7 @@ public class Arthur {
 	protected void _actFinish() {
 		this._pilot.stop();
 		
-		while (this._headMotor.isMoving()) {
-		}
+		this.__blockWhileHeadMoving();
 		
 		int angle = this._headMotor.getTachoCount();
 		angle = -angle;
@@ -168,13 +167,12 @@ public class Arthur {
 	 * @param both If true scan from [-tacho,tacho], else [0,tacho]
 	 * @return
 	 */
-	protected int _headScan(int tacho, boolean both) {
+	protected int _scanRange(int tacho, boolean both) {
 		int closestDistance = 255;
 		int closestTacho = 0;
 		int measurement = 255;
 		
-		while (this._headMotor.isMoving()) {
-		}
+		this.__blockWhileHeadMoving();
 		
 		this._headMotor.rotate(tacho, true);
 		while (this._headMotor.isMoving()) {
@@ -182,9 +180,11 @@ public class Arthur {
 			if (measurement < closestDistance) {
 				closestDistance = measurement;
 				closestTacho = this._headMotor.getTachoCount();
+				
+				this._log("SCAN: " + closestDistance + "@" + this._tachoToDegrees(closestTacho) + "DEG");
 			}
 		}
-		this._log("1S: "+closestDistance+" @ "+this._tachoToDegrees(closestTacho));
+
 		this._headMotor.rotate(-tacho);
 		
 		if (both) {
@@ -194,9 +194,11 @@ public class Arthur {
 				if (measurement < closestDistance) {
 					closestDistance = measurement;
 					closestTacho = this._headMotor.getTachoCount();
+					
+					this._log("SCAN: " + closestDistance + "@" + this._tachoToDegrees(closestTacho) + "DEG");
 				}
 			}
-			this._log("2S: "+closestDistance+" @ "+this._tachoToDegrees(closestTacho));
+
 			this._headMotor.rotate(tacho);
 		}
 		
@@ -209,9 +211,8 @@ public class Arthur {
 	 * @param tacho
 	 * @return
 	 */
-	protected int _headMeasure(int tacho) {
-		while (this._headMotor.isMoving()) {
-		}
+	protected int _scanPoint(int tacho) {
+		this.__blockWhileHeadMoving();
 		
 		int distance;
 		
@@ -267,6 +268,11 @@ public class Arthur {
 	}
 	
 	protected int _tachoToDegrees(int tacho) {
-		return 90 * tacho / ROTATE_90;
+		return 90 * tacho / DEGREES_90;
+	}
+	
+	private void __blockWhileHeadMoving() {
+		this._log("BLOCK: HEAD MOVING");
+		while (this._headMotor.isMoving()) {}
 	}
 }
