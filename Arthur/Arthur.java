@@ -81,6 +81,7 @@ public class Arthur {
 			}
 		}
 		
+		this._actFinish();
 	}
 	
 	protected void _actStartup() {
@@ -101,7 +102,7 @@ public class Arthur {
 				closestTacho = this._headMotor.getTachoCount();
 			}
 		}
-		this._log("LS - "+closestDistance+" @ "+closestTacho);
+		this._log("LS: "+closestDistance+" @ "+this._tachoToDegrees(closestTacho));
 		this._headMotor.rotate(-ROTATE_90);
 		this._headMotor.rotate(-ROTATE_90, true);
 		while (this._headMotor.isMoving()) {
@@ -111,10 +112,10 @@ public class Arthur {
 				closestTacho = this._headMotor.getTachoCount();
 			}
 		}
-		this._log("RS - "+closestDistance+" @ "+closestTacho);
+		this._log("RS: "+closestDistance+" @ "+this._tachoToDegrees(closestTacho));
 		this._headMotor.rotate(ROTATE_90);
 		
-		int angle = 90 * closestTacho / ROTATE_90;
+		int angle = this._tachoToDegrees(closestTacho);
 		this._log("Angle: "+angle);
 		
 		this._pilot.rotate(angle);
@@ -143,6 +144,26 @@ public class Arthur {
 		this._pilot.forward();
 	}
 	
+	protected void _actFinish() {
+		this._pilot.stop();
+		
+		while (this._headMotor.isMoving()) {
+		}
+		
+		int angle = this._headMotor.getTachoCount();
+		angle = -angle;
+		
+		if (angle != 0) {
+			this._log("Head reset: "+this._tachoToDegrees(angle));
+			this._headMotor.rotate(angle);
+		}
+		
+		this._log("Good night!");
+		this._sleep(2000);
+		
+		System.exit(0);
+	}
+	
 	protected boolean _isCollisionLeft() {
 		return this._leftBumper.isPressed(); // || this._leftMotor.isStopped();
 	}
@@ -165,7 +186,6 @@ public class Arthur {
 	
 	protected boolean _shouldQuit() {
 		if (Button.ESCAPE.isPressed()) {
-			System.exit(0);
 			return true;
 		}
 		
@@ -176,5 +196,9 @@ public class Arthur {
 		try {
 			Thread.sleep(ms);
 		} catch (InterruptedException e) {}
+	}
+	
+	protected int _tachoToDegrees(int tacho) {
+		return 90 * tacho / ROTATE_90;
 	}
 }
