@@ -85,37 +85,9 @@ public class Arthur {
 	}
 	
 	protected void _actStartup() {
-		int closestDistance = 255;
-		int closestTacho = 0;
-		int measurement = 255;
-		
 		this._log("Starting up");
 		
-		while (this._headMotor.isMoving()) {
-		}
-		
-		this._headMotor.rotate(ROTATE_90, true);
-		while (this._headMotor.isMoving()) {
-			measurement = this._headSensor.getDistance();
-			if (measurement < closestDistance) {
-				closestDistance = measurement;
-				closestTacho = this._headMotor.getTachoCount();
-			}
-		}
-		this._log("LS: "+closestDistance+" @ "+this._tachoToDegrees(closestTacho));
-		this._headMotor.rotate(-ROTATE_90);
-		this._headMotor.rotate(-ROTATE_90, true);
-		while (this._headMotor.isMoving()) {
-			measurement = this._headSensor.getDistance();
-			if (measurement < closestDistance) {
-				closestDistance = measurement;
-				closestTacho = this._headMotor.getTachoCount();
-			}
-		}
-		this._log("RS: "+closestDistance+" @ "+this._tachoToDegrees(closestTacho));
-		this._headMotor.rotate(ROTATE_90);
-		
-		int angle = this._tachoToDegrees(closestTacho);
+		int angle = this._tachoToDegrees(this._headScan(ROTATE_90, true));
 		this._log("Angle: "+angle);
 		
 		this._pilot.rotate(angle);
@@ -162,6 +134,54 @@ public class Arthur {
 		this._sleep(2000);
 		
 		System.exit(0);
+	}
+	
+	protected int _headScan(int tacho, boolean both) {
+		int closestDistance = 255;
+		int closestTacho = 0;
+		int measurement = 255;
+		
+		while (this._headMotor.isMoving()) {
+		}
+		
+		this._headMotor.rotate(tacho, true);
+		while (this._headMotor.isMoving()) {
+			measurement = this._headSensor.getDistance();
+			if (measurement < closestDistance) {
+				closestDistance = measurement;
+				closestTacho = this._headMotor.getTachoCount();
+			}
+		}
+		this._log("1S: "+closestDistance+" @ "+this._tachoToDegrees(closestTacho));
+		this._headMotor.rotate(-tacho);
+		
+		if (both) {
+			this._headMotor.rotate(-tacho, true);
+			while (this._headMotor.isMoving()) {
+				measurement = this._headSensor.getDistance();
+				if (measurement < closestDistance) {
+					closestDistance = measurement;
+					closestTacho = this._headMotor.getTachoCount();
+				}
+			}
+			this._log("2S: "+closestDistance+" @ "+this._tachoToDegrees(closestTacho));
+			this._headMotor.rotate(tacho);
+		}
+		
+		return closestTacho;
+	}
+	
+	protected int _headMeasure(int tacho) {
+		while (this._headMotor.isMoving()) {
+		}
+		
+		int distance;
+		
+		this._headMotor.rotate(tacho);
+		distance = this._headSensor.getDistance();
+		this._headMotor.rotate(-tacho);
+		
+		return distance;
 	}
 	
 	protected boolean _isCollisionLeft() {
