@@ -50,55 +50,44 @@ public class Arthur {
 	}
 	
 	public void deliberate() {
-		while(!Button.ESCAPE.isPressed()) {
-			if ((this._isCollisionLeft() || this._isCollisionRight()) && (this._leftMotor.isMoving() || this._rightMotor.isMoving())) {
-				this._log("Stop");
-				this._pilot.stop();
-				
-				this._sleep(500);
-
-				int collision = 0;
-				
-				if (this._isCollisionBoth()) {
-					this._log("Collision both");
-					collision = COLLISION_BOTH;
-				} else if (this._isCollisionLeft()) {
-					this._log("Collision left");
-					collision = COLLISION_LEFT;
-				} else if (this._isCollisionRight()) {
-					this._log("Collision right");
-					collision = COLLISION_RIGHT;
-				}
-				
-				this._sleep(500);
-				
-				this._log("Reversing..");
-				this._pilot.travel(-1);
-				
-				this._sleep(500);
-				
-				switch (collision) {
-					case COLLISION_BOTH:
-						this._handleHeadOnCollision();
-						break;
-					case COLLISION_LEFT:
-						this._log("Rotating right");
-						this._pilot.rotate(-30);
-						break;
-					case COLLISION_RIGHT:
-					default:
-						this._log("Rotating left");
-						this._pilot.rotate(30);
-						break;
-				}
-				
-				
-			} else {
-				this._log("Forward..");
-				this._pilot.forward();
+		this._actStartup();
+		
+		while(!this._shouldQuit()) {
+			int collision = 0;
+			if (this._isCollisionBoth()) {
+				this._log("Collision both");
+				collision = COLLISION_BOTH;
+			} else if (this._isCollisionLeft()) {
+				this._log("Collision left");
+				collision = COLLISION_LEFT;
+			} else if (this._isCollisionRight()) {
+				this._log("Collision right");
+				collision = COLLISION_RIGHT;
 			}
+			
+			switch (collision) {
+				case COLLISION_BOTH:
+					this._actCollisionBoth();
+					break;
+				case COLLISION_LEFT:
+				case COLLISION_RIGHT:
+				default:
+					this._actCollisionSingle(collision);
+					break;
+			}			
 		}
+		
 	}
+	
+	protected void _actStartup() {
+	}
+	
+	protected void _actCollisionBoth() {
+	}
+	
+	protected void _actCollisionSingle(int side) {
+	}
+	
 	
 	protected void _handleHeadOnCollision() {
 		int data = 255;
@@ -120,11 +109,11 @@ public class Arthur {
 	}
 	
 	protected boolean _isCollisionLeft() {
-		return this._leftBumper.isPressed() || this._leftMotor.isStopped();
+		return this._leftBumper.isPressed(); // || this._leftMotor.isStopped();
 	}
 	
 	protected boolean _isCollisionRight() {
-		return this._rightBumper.isPressed() || this._rightMotor.isStopped();
+		return this._rightBumper.isPressed(); // || this._rightMotor.isStopped();
 	}
 	
 	protected boolean _isCollisionBoth() {
@@ -137,6 +126,15 @@ public class Arthur {
 		LCD.drawString(message, 0, 1);
 		
 		return true;
+	}
+	
+	protected boolean _shouldQuit() {
+		if (Button.ESCAPE.isPressed()) {
+			System.exit(0);
+			return true;
+		}
+		
+		return false;
 	}
 	
 	protected void _sleep(long ms) {
