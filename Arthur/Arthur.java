@@ -21,6 +21,7 @@ public class Arthur {
 	protected static final int COLLISION_RIGHT = 4;
 	protected static final int COLLISION_BOTH = 5;
 	
+	// This is the value, in tachos, of a 90 degress rotation from 0 tachos
 	protected static final int ROTATE_90 = 4800;
 	
 	protected Pilot _pilot;
@@ -50,6 +51,11 @@ public class Arthur {
 		this._pilot = new TachoPilot(0.56f, 1.18f, this._leftMotor, this._rightMotor);
 	}
 	
+	/**
+	 * The main deliberation method.
+	 * 
+	 * Here's where we decide what we're going to be doing based on bumper sensor information.
+	 */
 	public void deliberate() {
 		this._actStartup();
 		
@@ -84,6 +90,11 @@ public class Arthur {
 		this._actFinish();
 	}
 	
+	/**
+	 * Action: Called when starting up Arthur
+	 * 
+	 * We aim to find the nearest object, based on a 180 scan of our surroundings, then move towards it.
+	 */
 	protected void _actStartup() {
 		this._log("Starting up");
 		
@@ -94,9 +105,17 @@ public class Arthur {
 		this._pilot.forward();
 	}
 	
+	/**
+	 * Action: Called when we have a collision on both bumpers
+	 */
 	protected void _actCollisionBoth() {
 	}
 	
+	/**
+	 * Action: Called when we have a collision on a single bumper
+	 * 
+	 * @param side The side the collision occurred, can be Arthur.COLLISION_LEFT or Arthur.COLLISION_RIGHT
+	 */
 	protected void _actCollisionSingle(int side) {
 		int angle = 0;
 		if (side == COLLISION_LEFT) {
@@ -116,6 +135,11 @@ public class Arthur {
 		this._pilot.forward();
 	}
 	
+	/**
+	 * Action: Called when we want to finish our run.
+	 * 
+	 * Resets the head to the initial heading, then quits.
+	 */
 	protected void _actFinish() {
 		this._pilot.stop();
 		
@@ -136,6 +160,14 @@ public class Arthur {
 		System.exit(0);
 	}
 	
+	/**
+	 * Perform a sweeping scan of a range ([-tacho, tacho] if both is set to true, else [0, tacho]), returning the
+	 * tacho with the closest object.
+	 * 
+	 * @param tacho
+	 * @param both If true scan from [-tacho,tacho], else [0,tacho]
+	 * @return
+	 */
 	protected int _headScan(int tacho, boolean both) {
 		int closestDistance = 255;
 		int closestTacho = 0;
@@ -171,6 +203,12 @@ public class Arthur {
 		return closestTacho;
 	}
 	
+	/**
+	 * Measure the distance (in cm I think) until an object at a specified tacho
+	 * 
+	 * @param tacho
+	 * @return
+	 */
 	protected int _headMeasure(int tacho) {
 		while (this._headMotor.isMoving()) {
 		}
@@ -185,17 +223,23 @@ public class Arthur {
 	}
 	
 	protected boolean _isCollisionLeft() {
-		return this._leftBumper.isPressed(); // || this._leftMotor.isStopped();
+		return this._leftBumper.isPressed();
 	}
 	
 	protected boolean _isCollisionRight() {
-		return this._rightBumper.isPressed(); // || this._rightMotor.isStopped();
+		return this._rightBumper.isPressed();
 	}
 	
 	protected boolean _isCollisionBoth() {
 		return this._isCollisionLeft() && this._isCollisionRight();
 	}
 	
+	/**
+	 * A helper to log messages to the string
+	 * 
+	 * @param message
+	 * @return Always returns true, so it can be used in conditionals
+	 */
 	protected boolean _log(String message) {
 		LCD.clear();
 		LCD.drawString("ARTHUR SAYS:", 0, 0);
@@ -204,6 +248,10 @@ public class Arthur {
 		return true;
 	}
 	
+	/**
+	 * Decides whether or not we should quit, based on whether the escape button is pressed or not.
+	 * @return
+	 */
 	protected boolean _shouldQuit() {
 		if (Button.ESCAPE.isPressed()) {
 			return true;
