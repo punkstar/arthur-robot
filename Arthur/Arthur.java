@@ -22,7 +22,7 @@ public class Arthur {
 	protected static final int COLLISION_BOTH = 5;
 	
 	// This is the value, in tachos, of a 90 degress rotation from 0 tachos
-	protected static final int DEGREES_90 = 4800;
+	protected static final int DEGREES_90 = 4900;
 	
 	protected Pilot _pilot;
 	
