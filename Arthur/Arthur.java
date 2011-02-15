@@ -140,10 +140,10 @@ public class Arthur {
 	protected void _actCollisionSingle(int side) {
 		int angle = 0;
 		if (side == COLLISION_LEFT) {
-			angle = -30;
+			angle = -15;
 			this._log("ACT: COLLISION L");
 		} else if (side == COLLISION_RIGHT) {
-			angle = 30;
+			angle = 15;
 			this._log("ACT: COLLISION R");
 		} else {
 			// FAIL
