@@ -338,8 +338,30 @@ public class Arthur {
 		return 90 * tacho / DEGREES_90;
 	}
 	
+	protected int _degressToTacho(int degrees) {
+		return (degrees / 90) * DEGREES_90;
+	}
+	
 	private void __blockWhileHeadMoving() {
 		this._log("BLOCK: HEAD MOVING");
 		while (this._headMotor.isMoving()) {}
+	}
+	
+	/**
+	 * A helper to log messages to the string.  As many parameters as you like, but you'll be capped to six lines on the screen.
+	 * 
+	 * @param messages
+	 * @return Always returns true, so it can be used in conditionals
+	 */
+	protected boolean _log(String ... messages) {
+		LCD.clear();
+		LCD.drawString("ARTHUR SAYS:", 0, 0);
+		
+		int i = 1;
+		for(String message : messages) {
+			LCD.drawString(message, 0, i++);
+		}
+		
+		return true;
 	}
 }
