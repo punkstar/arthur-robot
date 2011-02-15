@@ -217,11 +217,13 @@ public class Arthur {
 				}
 			}
 
-			this._headMotor.rotate(tacho);
+			// Don't both waiting for the head to get back to the correct position, don't block
+			this._headMotor.rotate(tacho, true);
 		}
 		
 		return closestTacho;
 	}
+	
 	
 	/**
 	 * Measure the distance (in cm I think) until an object at a specified tacho
@@ -236,7 +238,7 @@ public class Arthur {
 		
 		this._headMotor.rotate(tacho);
 		distance = this._headSensor.getDistance();
-		this._headMotor.rotate(-tacho);
+		this._headMotor.rotate(-tacho, true);
 		
 		return distance;
 	}
