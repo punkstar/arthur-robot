@@ -7,8 +7,6 @@ import lejos.nxt.UltrasonicSensor;
 import lejos.robotics.navigation.Pilot;
 import lejos.robotics.navigation.TachoPilot;
 
-import java.lang.InterruptedException;
-
 public class Arthur {
 	public static void main(String[] args) {
 		Arthur arthur = new Arthur();
@@ -35,6 +33,9 @@ public class Arthur {
 	protected Motor _rightMotor;
 	protected Motor _headMotor;
 	
+	protected boolean _moving = false;
+	protected boolean _stalled = false;
+	
 	public Arthur() {
 		this._leftBumper = new TouchSensor(SensorPort.S4);
 		this._rightBumper = new TouchSensor(SensorPort.S1);
@@ -59,10 +60,14 @@ public class Arthur {
 	public void deliberate() {
 		this._actStartup();
 		
+		this._startCheckStalledThread();
+		
 		while(!this._shouldQuit()) {
-			if (this._isCollisionLeft() || this._isCollisionRight()) {
-				this._pilot.stop();
-				int collision = COLLISION_NONE;
+			if (this._stalled) {
+				this._log("Stall detected");
+				this._travel(-1);
+			} else if (this._isCollisionLeft() || this._isCollisionRight()) {
+				this._stop();
 				
 				this._sleep(500);
 				
@@ -80,10 +85,8 @@ public class Arthur {
 					this._actCollisionSingle(collision);
 				} else {
 					this._log("COLLISION: NONE!?");
-					this._pilot.forward();
+					this._forward();
 				}
-			} else {
-				this._log("MOVING");
 			}
 		}
 		
@@ -129,10 +132,10 @@ public class Arthur {
 			this._log("ACT: OMGWTFBBQ!");
 		}
 		
-		this._pilot.travel(-1); // in wheel rotations
-		this._pilot.rotate(angle);
+		this._travel(-0.5f); // in wheel rotations
+		this._rotate(angle);
 		
-		this._pilot.forward();
+		this._forward();
 	}
 	
 	/**
@@ -141,7 +144,7 @@ public class Arthur {
 	 * Resets the head to the initial heading, then quits.
 	 */
 	protected void _actFinish() {
-		this._pilot.stop();
+		this._stop();
 		
 		this.__blockWhileHeadMoving();
 		
@@ -223,6 +226,84 @@ public class Arthur {
 		return distance;
 	}
 	
+	/**
+	 * Pilot wrapper for travelling set distances, blocking while doing so.
+	 * @param wheel_rotations
+	 */
+	protected void _travel(float wheel_rotations) {
+		this._moving = true;
+		this._pilot.travel(wheel_rotations);
+		this._moving = false;
+	}
+	
+	/**
+	 * Pilot wrapper for rotating a specific angle.  Negative = clockwise.
+	 * @param angle
+	 */
+	protected void _rotate(int angle) {
+		this._moving = true;
+		this._pilot.rotate(angle);
+		this._moving = false;
+	}
+	
+	/**
+	 * Pilot wrapper for turning the motors on, forwards.
+	 */
+	protected void _forward() {
+		this._moving = true;
+		this._pilot.forward();
+	}
+	
+	/**
+	 * Pilot wrapper for turning the motors on, in reverse.
+	 */
+	protected void _backward() {
+		this._moving = true;
+		this._pilot.backward();
+	}
+	
+	/**
+	 * Pilot wrapper for turning the motors off.
+	 */
+	protected void _stop() {
+		this._moving = false;
+		this._pilot.stop();
+	}
+	
+	/**
+	 * A helper to log messages to the string
+	 * 
+	 * @param message
+	 * @return Always returns true, so it can be used in conditionals
+	 */
+	protected void _startCheckStalledThread() {
+		Thread t = new Thread() {
+			public void run() {
+				while (true) {
+					_stalled = false;
+					
+					// Check sequentially three times in a row for a stall.
+					if (_isStalled()) {
+						_sleep(1000);
+						if (_isStalled()) {
+							_sleep(1000);
+							if(_isStalled()) {
+								_stalled = true;
+								_sleep(1000);
+							}
+						}
+					}
+				}
+			}
+			
+			protected boolean _isStalled() {
+				return _moving && _leftMotor.isStopped() && _rightMotor.isStopped();
+			}
+		};
+		
+		t.start();
+	}
+	
 	protected boolean _isCollisionLeft() {
 		return this._leftBumper.isPressed();
 	}
@@ -233,20 +314,6 @@ public class Arthur {
 	
 	protected boolean _isCollisionBoth() {
 		return this._isCollisionLeft() && this._isCollisionRight();
-	}
-	
-	/**
-	 * A helper to log messages to the string
-	 * 
-	 * @param message
-	 * @return Always returns true, so it can be used in conditionals
-	 */
-	protected boolean _log(String message) {
-		LCD.clear();
-		LCD.drawString("ARTHUR SAYS:", 0, 0);
-		LCD.drawString(message, 0, 1);
-		
-		return true;
 	}
 	
 	/**
