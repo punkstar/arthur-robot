@@ -288,10 +288,9 @@ public class Arthur {
 	}
 	
 	/**
-	 * A helper to log messages to the string
+	 * Start a thread to check whether the motors are stalled at all, setting an instance variable if so.
 	 * 
-	 * @param message
-	 * @return Always returns true, so it can be used in conditionals
+	 * @FIXME Doesn't appear to actually be working at the moment..
 	 */
 	protected void _startCheckStalledThread() {
 		Thread t = new Thread() {
