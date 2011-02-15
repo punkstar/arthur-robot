@@ -104,14 +104,32 @@ public class Arthur {
 		int angle = this._tachoToDegrees(this._scanRange(DEGREES_90, true));
 		this._log("ANGLE: " + angle);
 		
-		this._pilot.rotate(angle);
-		this._pilot.forward();
+		this._rotate(angle);
+		this._forward();
 	}
 	
 	/**
 	 * Action: Called when we have a collision on both bumpers
 	 */
 	protected void _actCollisionBoth() {
+		int left_distance = this._scanPoint(this._degressToTacho(90));
+		int right_distance = this._scanPoint(this._degressToTacho(-90));
+		
+		this._log("LEFT: " + left_distance, "RIGHT: " + right_distance);
+		
+		if (left_distance < 30 && right_distance < 30) {
+			this._travel(-1);
+			this._actCollisionBoth();
+		} else {
+			int angle = 90;
+			
+			if (left_distance < right_distance) {
+				angle *= -1;
+			}
+			
+			this._rotate(angle);
+			this._forward();
+		}
 	}
 	
 	/**
