@@ -73,16 +73,13 @@ public class Arthur {
 				
 				if (this._isCollisionBoth()) {
 					this._log("COLLISION: BOTH");
-					collision = COLLISION_BOTH;
 					this._actCollisionBoth();
 				} else if (this._isCollisionLeft()) {
 					this._log("COLLISION: LEFT");
-					collision = COLLISION_LEFT;
-					this._actCollisionSingle(collision);
+					this._actCollisionSingle(COLLISION_LEFT);
 				} else if (this._isCollisionRight()) {
 					this._log("COLLISION: RIGHT");
-					collision = COLLISION_RIGHT;
-					this._actCollisionSingle(collision);
+					this._actCollisionSingle(COLLISION_RIGHT);
 				} else {
 					this._log("COLLISION: NONE!?");
 					this._forward();
