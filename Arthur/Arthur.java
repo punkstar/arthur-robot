@@ -109,8 +109,8 @@ public class Arthur {
 	 * Action: Called when we have a collision on both bumpers
 	 */
 	protected void _actCollisionBoth() {
-		int left_distance = this._scanPoint(this._degressToTacho(90));
-		int right_distance = this._scanPoint(this._degressToTacho(-90));
+		int left_distance = this._scanPoint(this._degreesToTacho(90));
+		int right_distance = this._scanPoint(this._degreesToTacho(-90));
 		
 		this._log("LEFT: " + left_distance, "RIGHT: " + right_distance);
 		
@@ -354,7 +354,7 @@ public class Arthur {
 		return 90 * tacho / DEGREES_90;
 	}
 	
-	protected int _degressToTacho(int degrees) {
+	protected int _degreesToTacho(int degrees) {
 		return (degrees / 90) * DEGREES_90;
 	}
 	
