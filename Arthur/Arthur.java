@@ -216,10 +216,10 @@ public class Arthur {
 				this._log("SCAN: " + closestDistance + "@" + this._tachoToDegrees(closestTacho) + "DEG");
 			}
 		}
-
-		this._headMotor.rotate(-tacho);
 		
 		if (both) {
+			this._headMotor.rotate(-tacho);
+			
 			this._headMotor.rotate(-tacho, true);
 			while (this._headMotor.isMoving()) {
 				measurement = this._headSensor.getDistance();
@@ -231,8 +231,9 @@ public class Arthur {
 				}
 			}
 
-			// Don't both waiting for the head to get back to the correct position, don't block
 			this._headMotor.rotate(tacho, true);
+		} else {
+			this._headMotor.rotate(-tacho, true);
 		}
 		
 		return closestTacho;
