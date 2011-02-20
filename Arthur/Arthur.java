@@ -135,20 +135,34 @@ public class Arthur {
 	 * @param side The side the collision occurred, can be Arthur.COLLISION_LEFT or Arthur.COLLISION_RIGHT
 	 */
 	protected void _actCollisionSingle(int side) {
-		int angle = 0;
+		int side_modifier = 0;
 		if (side == COLLISION_LEFT) {
-			angle = -15;
 			this._log("ACT: COLLISION L");
+			side_modifier = -1;
 		} else if (side == COLLISION_RIGHT) {
-			angle = 15;
 			this._log("ACT: COLLISION R");
+			side_modifier = 1;
 		} else {
-			// FAIL
-			this._log("ACT: OMGWTFBBQ!");
+			// Single collision called, but the collision side parameter was
+			// not passed - this should never happen
+			this._log("COLLISION ERROR:", "Act: Single collision", "Status: No collision");
+			this._sleep(5000);
+			this._actFinish();
 		}
 		
-		this._travel(-0.5f); // in wheel rotations
-		this._rotate(angle);
+		int collision_tacho = this._scanRange(this._degreesToTacho(side_modifier * -90), false);
+		int rotation_angle = this._tachoToDegrees(side_modifier * this._degreesToTacho(90) + collision_tacho);
+		
+		if (rotation_angle > -3 && rotation_angle < 3) {
+			// Nearest obstacle is parallel to the robot and shouldn't have
+			// collided, therefore ignore scan data
+			rotation_angle = side_modifier * 15;
+			this._log("SCAN INCONCLUSIVE");
+		}
+		
+		this._travel(-0.5f);
+		this._log("ROTATING " + rotation_angle + "deg");
+		this._rotate(rotation_angle);
 		
 		this._forward();
 	}
