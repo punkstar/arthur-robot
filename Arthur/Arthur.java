@@ -246,13 +246,23 @@ public class Arthur {
 	 * @return
 	 */
 	protected int _scanPoint(int tacho) {
-		this.__blockWhileHeadMoving();
+	
+		int return_tacho = -1 * tacho;
+		if (this._headMotor.isMoving()) {
+			// Adjust the rotation angle if the head is not straight
+			// (saves waiting for the head to return if we need it on the same side)
+			this._headMotor.stop();
+			int current_tacho = this._headMotor.getTachoCount();
+			if (current_tacho != 0) {
+				tacho = tacho - current_tacho;
+			}
+		}
 		
 		int distance;
 		
 		this._headMotor.rotate(tacho);
 		distance = this._headSensor.getDistance();
-		this._headMotor.rotate(-tacho, true);
+		this._headMotor.rotate(return_tacho, true);
 		
 		return distance;
 	}
