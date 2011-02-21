@@ -124,6 +124,44 @@ public class Arthur {
 	}
 	
 	/**
+	 * Action: Called when Arthur knows there's a wall on one side and should follow it
+	 */
+	protected void _actFollow() {
+		this._stop();
+		int side_modifier = (this._wallSide == COLLISION_LEFT) ? 1 : -1;
+		
+		int corner_distance = 5;
+		int error_distance = 2;
+		int lost_distance = 50;
+		float travel_distance = 2.0f;
+		
+		int distance = this._scanPoint(this._degreesToTacho(side_modifier * 90));
+		
+		if (this._wallDistance < 0) {
+			// Note the distance to the wall when we start following it
+			this._wallDistance = distance;
+		} else if (this._wallDistance > lost_distance && distance > lost_distance) {
+			// The wall is too far, we're lost, reset
+			this._actStartup();
+			return;
+		} else if (distance > this._wallDistance + corner_distance) {
+			// Lost the wall, probably a corner, move into it
+			this._rotate(side_modifier * 45);
+			this._wallDistance = -1;
+		} else if (distance > this._wallDistance + error_distance) {
+			// Moving away from the wall, correct it
+			this._rotate(side_modifier * 10);
+			this._wallDistance = distance;
+		} else if (distance < this._wallDistance + error_distance) {
+			// Moving closer to the wall, correct it
+			this._rotate(side_modifier * -10);
+			this._wallDistance = distance;
+		}
+		
+		this._travel(travel_distance);
+	}
+	
+	/**
 	 * Action: Called when we have a collision on both bumpers
 	 */
 	protected void _actCollisionBoth() {
