@@ -7,6 +7,9 @@ import lejos.nxt.UltrasonicSensor;
 import lejos.robotics.navigation.Pilot;
 import lejos.robotics.navigation.TachoPilot;
 
+import java.lang.Math;
+import java.lang.Double;
+
 public class Arthur {
 	public static void main(String[] args) {
 		Arthur arthur = new Arthur();
@@ -121,6 +124,53 @@ public class Arthur {
 		
 		this._rotate(angle);
 		this._forward();
+	}
+	
+	/**
+	 * Action: Called when Arthur knows there's a wall on one side and should follow it
+	 */
+	protected int _sAdvances = 0;
+	protected void _actFollow() {
+		this._stop();
+		int side_modifier = (this._wallSide == COLLISION_LEFT) ? 1 : -1;
+		
+		int corner_distance = 5;
+		int error_distance = 2;
+		int lost_distance = 50;
+		float travel_distance = 2.0f;
+		
+		int distance = this._scanPoint(this._degreesToTacho(side_modifier * 90));
+		//this._log("Distance: " + this._wallDistance, "Scan: " + distance);
+		
+		int angle = 0;
+		
+		if (this._wallDistance < 0) {
+			// Note the distance to the wall when we start following it
+			this._wallDistance = distance;
+		} else if (this._wallDistance > lost_distance && distance > lost_distance) {
+			// The wall is too far, we're lost, reset
+			this._actStartup();
+			return;
+		} else if (distance > this._wallDistance + corner_distance) {
+			// Lost the wall, probably a corner, move into it
+			this._rotate(side_modifier * 45);
+			this._wallDistance = -1;
+		} else if (distance > this._wallDistance + error_distance) {
+			// Moving away from the wall, correct it
+			angle = (int) Math.acos((distance - this._wallDistance) / (this._sAdvances * travel_distance * 2.54));
+			this._rotate(side_modifier * angle);
+			this._log("Distance: " + distance, "Wall: " + this._wallDistance, "Correction: " + angle, "S: " + this._sAdvances);
+			this._wallDistance = distance;
+		} else if (distance < this._wallDistance + error_distance) {
+			// Moving closer to the wall, correct it
+			angle = (int) Math.asin((this._wallDistance - distance) / (this._sAdvances * travel_distance * 2.54));
+			this._rotate(side_modifier * angle);
+			this._log("Distance: " + distance, "Wall: " + this._wallDistance, "Correction: " + angle, "S: " + this._sAdvances);
+			this._wallDistance = distance;
+		}
+		
+		this._sAdvances++;
+		this._travel(travel_distance);
 	}
 	
 	/**
