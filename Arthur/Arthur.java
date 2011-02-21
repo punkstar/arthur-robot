@@ -22,8 +22,6 @@ public class Arthur {
 	// This is the value, in tachos, of a 90 degress rotation from 0 tachos
 	protected static final int DEGREES_90 = 1700; // 4900;
 	
-	protected static final int DESIRED_DISTANCE = 10;
-	
 	protected Pilot _pilot;
 	
 	protected TouchSensor _leftBumper;
@@ -65,7 +63,8 @@ public class Arthur {
 	public void deliberate() {
 		this._actStartup();
 		
-		this._startCheckStalledThread();
+		// @FIXME This isn't wokring properly
+		//this._startCheckStalledThread();
 		
 		while(!this._shouldQuit()) {
 			if (this._stalled) {
@@ -96,28 +95,8 @@ public class Arthur {
 					this._forward();
 				}
 			} else if (this._wallSide != COLLISION_NONE) {
-				//this._stop();
-				int side_modifier = (this._wallSide == COLLISION_LEFT) ? 1 : -1;
-				int distance = this._scanPoint(this._degreesToTacho(side_modifier * 90));
-				this._log("Distance: " + this._wallDistance, "Scan: " + distance);
-				if (this._wallDistance < 0) {
-					this._wallDistance = distance;
-				} else if (distance > 50) {
-					// Too far from the wall
-					this._actStartup();
-				} else if (distance > this._wallDistance + 5) {
-					// Lost the wall, probably a corner, move around it
-					this._rotate(side_modifier * 90);
-				} else if (distance > this._wallDistance) {
-					// Moving away, turn a bit into the wall
-					this._rotate(side_modifier * 10);
-				} else if (distance < this._wallDistance) {
-					// Moving closer, turn a bit away from the wall
-					this._rotate(side_modifier * -10);
-				}
-				this._forward();
-				//this._sleep(500);
-				this._wallDistance = distance;
+				// We know there's a wall on one side - follow it
+				this._actFollow();
 			}
 		}
 		
@@ -131,6 +110,8 @@ public class Arthur {
 	 */
 	protected void _actStartup() {
 		this._log("ACT: STARTUP");
+		
+		this._stop();
 		
 		this._wallSide = COLLISION_NONE;
 		this._wallDistance = -1;
@@ -193,7 +174,7 @@ public class Arthur {
 		int collision_tacho = this._scanRange(this._degreesToTacho(side_modifier * -90), false);
 		int rotation_angle = this._tachoToDegrees(side_modifier * this._degreesToTacho(90) + collision_tacho);
 		
-		if (rotation_angle > -3 && rotation_angle < 3) {
+		if (rotation_angle > -7 && rotation_angle < 7) {
 			// Nearest obstacle is parallel to the robot and shouldn't have
 			// collided, therefore ignore scan data
 			rotation_angle = side_modifier * 15;
@@ -218,15 +199,7 @@ public class Arthur {
 	protected void _actFinish() {
 		this._stop();
 		
-		this.__blockWhileHeadMoving();
-		
-		int angle = this._headMotor.getTachoCount();
-		angle = -angle;
-		
-		if (angle != 0) {
-			this._log("Head reset: "+this._tachoToDegrees(angle));
-			this._headMotor.rotate(angle);
-		}
+		this._resetHead();
 		
 		this._log("Good night!");
 		this._sleep(2000);
@@ -247,7 +220,7 @@ public class Arthur {
 		int closestTacho = 0;
 		int measurement = 255;
 		
-		this.__blockWhileHeadMoving();
+		this._resetHead();
 		
 		this._headMotor.rotate(tacho, true);
 		while (this._headMotor.isMoving()) {
@@ -291,22 +264,18 @@ public class Arthur {
 	 */
 	protected int _scanPoint(int tacho) {
 	
-		int return_tacho = -1 * tacho;
-		if (this._headMotor.isMoving()) {
-			// Adjust the rotation angle if the head is not straight
-			// (saves waiting for the head to return if we need it on the same side)
-			this._headMotor.stop();
-			int current_tacho = this._headMotor.getTachoCount();
-			if (current_tacho != 0) {
-				tacho = tacho - current_tacho;
-			}
+		// Adjust the rotation angle if the head is not straight
+		// (saves waiting for the head to return if we need it on the same side)
+		this._headMotor.stop();
+		int current_tacho = this._headMotor.getTachoCount();
+		if (current_tacho != 0) {
+			tacho = tacho - current_tacho;
 		}
 		
 		int distance;
 		
 		this._headMotor.rotate(tacho);
 		distance = this._headSensor.getDistance();
-		this._headMotor.rotate(return_tacho, true);
 		
 		return distance;
 	}
@@ -426,9 +395,19 @@ public class Arthur {
 		return (degrees / 90) * DEGREES_90;
 	}
 	
-	private void __blockWhileHeadMoving() {
-		this._log("BLOCK: HEAD MOVING");
-		while (this._headMotor.isMoving()) {}
+	/**
+	 * Reset the head to look straight
+	 */
+	protected void _resetHead() {
+		this._headMotor.stop();
+		
+		int angle = this._headMotor.getTachoCount();
+		angle = -angle;
+		
+		if (angle != 0) {
+			this._log("Head reset: "+ this._tachoToDegrees(angle) + "DEG");
+			this._headMotor.rotate(angle);
+		}
 	}
 	
 	/**
