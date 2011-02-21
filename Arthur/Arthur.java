@@ -20,7 +20,9 @@ public class Arthur {
 	protected static final int COLLISION_BOTH = 5;
 	
 	// This is the value, in tachos, of a 90 degress rotation from 0 tachos
-	protected static final int DEGREES_90 = 4900;
+	protected static final int DEGREES_90 = 1700; // 4900;
+	
+	protected static final int DESIRED_DISTANCE = 10;
 	
 	protected Pilot _pilot;
 	
@@ -35,6 +37,9 @@ public class Arthur {
 	
 	protected boolean _moving = false;
 	protected boolean _stalled = false;
+	
+	protected int _wallSide;
+	protected int _wallDistance;
 	
 	public Arthur() {
 		this._leftBumper = new TouchSensor(SensorPort.S4);
@@ -73,17 +78,46 @@ public class Arthur {
 				
 				if (this._isCollisionBoth()) {
 					this._log("COLLISION: BOTH");
+					this._wallDistance = -1;
+					this._wallSide = COLLISION_NONE;
 					this._actCollisionBoth();
 				} else if (this._isCollisionLeft()) {
 					this._log("COLLISION: LEFT");
+					this._wallDistance = -1;
+					this._wallSide = COLLISION_LEFT;
 					this._actCollisionSingle(COLLISION_LEFT);
 				} else if (this._isCollisionRight()) {
 					this._log("COLLISION: RIGHT");
+					this._wallDistance = -1;
+					this._wallSide = COLLISION_RIGHT;
 					this._actCollisionSingle(COLLISION_RIGHT);
 				} else {
 					this._log("COLLISION: NONE!?");
 					this._forward();
 				}
+			} else if (this._wallSide != COLLISION_NONE) {
+				//this._stop();
+				int side_modifier = (this._wallSide == COLLISION_LEFT) ? 1 : -1;
+				int distance = this._scanPoint(this._degreesToTacho(side_modifier * 90));
+				this._log("Distance: " + this._wallDistance, "Scan: " + distance);
+				if (this._wallDistance < 0) {
+					this._wallDistance = distance;
+				} else if (distance > 50) {
+					// Too far from the wall
+					this._actStartup();
+				} else if (distance > this._wallDistance + 5) {
+					// Lost the wall, probably a corner, move around it
+					this._rotate(side_modifier * 90);
+				} else if (distance > this._wallDistance) {
+					// Moving away, turn a bit into the wall
+					this._rotate(side_modifier * 10);
+				} else if (distance < this._wallDistance) {
+					// Moving closer, turn a bit away from the wall
+					this._rotate(side_modifier * -10);
+				}
+				this._forward();
+				//this._sleep(500);
+				this._wallDistance = distance;
 			}
 		}
 		
@@ -97,6 +131,9 @@ public class Arthur {
 	 */
 	protected void _actStartup() {
 		this._log("ACT: STARTUP");
+		
+		this._wallSide = COLLISION_NONE;
+		this._wallDistance = -1;
 		
 		int angle = this._tachoToDegrees(this._scanRange(DEGREES_90, true));
 		this._log("ANGLE: " + angle);
@@ -114,16 +151,19 @@ public class Arthur {
 		
 		this._log("LEFT: " + left_distance, "RIGHT: " + right_distance);
 		
-		if (left_distance < 30 && right_distance < 30) {
+		if (left_distance < 10 && right_distance < 10) {
 			this._travel(-1);
 			this._actCollisionBoth();
 		} else {
 			int angle = 90;
+			this._wallSide = COLLISION_RIGHT;
 			
 			if (left_distance < right_distance) {
 				angle *= -1;
+				this._wallSide = COLLISION_LEFT;
 			}
 			
+			this._travel(-0.5f);
 			this._rotate(angle);
 			this._forward();
 		}
@@ -158,6 +198,9 @@ public class Arthur {
 			// collided, therefore ignore scan data
 			rotation_angle = side_modifier * 15;
 			this._log("SCAN INCONCLUSIVE");
+		} else {
+			// Compensate for oversteer
+			rotation_angle *= 0.9;
 		}
 		
 		this._travel(-0.5f);
