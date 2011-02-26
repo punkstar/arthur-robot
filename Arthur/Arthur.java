@@ -2,6 +2,7 @@ import lejos.nxt.Button;
 import lejos.nxt.LCD;
 import lejos.nxt.Motor;
 import lejos.nxt.SensorPort;
+import lejos.nxt.Sound;
 import lejos.nxt.TouchSensor;
 import lejos.nxt.UltrasonicSensor;
 import lejos.robotics.navigation.Pilot;
@@ -15,12 +16,14 @@ public class Arthur {
     }
 	
 	protected static final int COLLISION_NONE = 0;
-	protected static final int COLLISION_LEFT = 3;
-	protected static final int COLLISION_RIGHT = 4;
+	protected static final int LEFT = 3;
+	protected static final int RIGHT = 4;
 	protected static final int COLLISION_BOTH = 5;
 	
 	// This is the value, in tachos, of a 90 degress rotation from 0 tachos
-	protected static final int DEGREES_90 = 1700; // 4900;
+	protected static final int DEGREES_90 = 90; // 4900;
+	
+	protected static final int MAXIMUM_DESIRED_WALL_DISTANCE = 15;
 	
 	protected Pilot _pilot;
 	
@@ -50,7 +53,7 @@ public class Arthur {
 		this._headMotor = Motor.B;
 		
 		this._headMotor.resetTachoCount();
-		this._headMotor.setSpeed(1440);
+		this._headMotor.setSpeed(400);
 		
 		this._pilot = new TachoPilot(0.56f, 1.18f, this._leftMotor, this._rightMotor);
 	}
@@ -67,9 +70,16 @@ public class Arthur {
 		//this._startCheckStalledThread();
 		
 		while(!this._shouldQuit()) {
+			// Check distance from
+			int distance_front = this._scanPoint(this._degreesToTacho(0));
+			
 			if (this._stalled) {
 				this._log("Stall detected");
 				this._travel(-1);
+			} else if (distance_front < 15) {
+				this._stop();
+				this._log("That front wall", "is getting a", "little close");
+				this._actCollisionBoth();
 			} else if (this._isCollisionLeft() || this._isCollisionRight()) {
 				this._stop();
 				
@@ -83,13 +93,13 @@ public class Arthur {
 				} else if (this._isCollisionLeft()) {
 					this._log("COLLISION: LEFT");
 					this._wallDistance = -1;
-					this._wallSide = COLLISION_LEFT;
-					this._actCollisionSingle(COLLISION_LEFT);
+					this._wallSide = LEFT;
+					this._actCollisionSingle(LEFT);
 				} else if (this._isCollisionRight()) {
 					this._log("COLLISION: RIGHT");
 					this._wallDistance = -1;
-					this._wallSide = COLLISION_RIGHT;
-					this._actCollisionSingle(COLLISION_RIGHT);
+					this._wallSide = RIGHT;
+					this._actCollisionSingle(RIGHT);
 				} else {
 					this._log("COLLISION: NONE!?");
 					this._forward();
@@ -113,52 +123,134 @@ public class Arthur {
 		
 		this._stop();
 		
+		int left_distance = this._scanPoint(this._degreesToTacho(90));
+		
 		this._wallSide = COLLISION_NONE;
 		this._wallDistance = -1;
 		
 		int angle = this._tachoToDegrees(this._scanRange(DEGREES_90, true));
 		this._log("ANGLE: " + angle);
 		
-		this._rotate(angle);
-		this._forward();
+		int right_distance = this._scanPoint(this._degreesToTacho(-90));
+		
+		this._log("Startup Act", "L: " + left_distance, "R: " + right_distance, "Angle: " + angle); this._sleep(1000);
+		
+		if (Math.abs(left_distance - this.MAXIMUM_DESIRED_WALL_DISTANCE) <= 10) {
+			this._log("Following left"); this._sleep(1000);
+			this._wallSide = LEFT;
+			this._wallDistance = left_distance;
+			this._actFollow();
+		} else if (Math.abs(right_distance - this.MAXIMUM_DESIRED_WALL_DISTANCE) <= 10) {
+			this._log("Following right"); this._sleep(1000);
+			this._wallSide = RIGHT;
+			this._wallDistance = right_distance;
+			this._actFollow();
+		} else {
+			this._log("Moving through", "angle to wall"); this._sleep(1000);
+			this._rotate(angle);
+			this._forward();
+		}
 	}
 	
 	/**
 	 * Action: Called when Arthur knows there's a wall on one side and should follow it
 	 */
+	protected int _heading = 0;
 	protected void _actFollow() {
 		this._stop();
-		int side_modifier = (this._wallSide == COLLISION_LEFT) ? 1 : -1;
+		int side_modifier = (this._wallSide == LEFT) ? 1 : -1;
 		
-		int corner_distance = 5;
+		int corner_distance = 10;
 		int error_distance = 2;
 		int lost_distance = 50;
-		float travel_distance = 2.0f;
 		
-		int distance = this._scanPoint(this._degreesToTacho(side_modifier * 90));
+		boolean pause = false;
+		float travel_distance = 0.5f;
+		int travel_rotate = 15;
+		
+		int distance = this._scanPoint(this._degreesToTacho(side_modifier * 90 + this._heading));
+		int distance_change = distance - this._wallDistance;
+		
+		this._log("Dist: " + distance, "Dist': " + this._wallDistance, "Change: " + (distance - this._wallDistance) ,"Need: " + (distance - this.MAXIMUM_DESIRED_WALL_DISTANCE)); if (pause) { this._sleep(2500); }
 		
 		if (this._wallDistance < 0) {
-			// Note the distance to the wall when we start following it
-			this._wallDistance = distance;
-		} else if (this._wallDistance > lost_distance && distance > lost_distance) {
-			// The wall is too far, we're lost, reset
+			// We had no previous reading, so just carry on
+			this._travel(travel_distance);
+		} else if (distance_change > lost_distance) {
+			// We think we've just plain lost the wall
 			this._actStartup();
 			return;
-		} else if (distance > this._wallDistance + corner_distance) {
-			// Lost the wall, probably a corner, move into it
-			this._rotate(side_modifier * 45);
-			this._wallDistance = -1;
-		} else if (distance > this._wallDistance + error_distance) {
-			// Moving away from the wall, correct it
-			this._rotate(side_modifier * 10);
-			this._wallDistance = distance;
-		} else if (distance < this._wallDistance + error_distance) {
-			// Moving closer to the wall, correct it
-			this._rotate(side_modifier * -10);
-			this._wallDistance = distance;
+		} else if (distance_change > corner_distance) {
+			// We think we've hit a corner
+			this._rotate(side_modifier * travel_rotate * 2);
+			this._travel(travel_distance * 2);
+		} else if (distance_change > 0 && distance < this.MAXIMUM_DESIRED_WALL_DISTANCE) {
+			// Moving away, but not at the mark yet
+			
+			this._log("Moving away", "Not at mark", "Hold"); if (pause) { this._sleep(2500); }
+			
+			this._travel(travel_distance);
+		} else if (distance_change >= 0 && distance > this.MAXIMUM_DESIRED_WALL_DISTANCE) {
+			// Moving away, but we've missed the mark
+
+			this._log("Moving away", "Missed mark", "Correct"); if (pause) { this._sleep(2500); }
+			
+			// Use the distance change to make the turn sharper if there's a greater jump
+			this._rotate(side_modifier * (travel_rotate + distance_change));
+			this._travel(travel_distance);
+		} else if (distance_change < 0 && distance < this.MAXIMUM_DESIRED_WALL_DISTANCE) {
+			// Moving towards, we've missed the mark
+			
+			this._log("Moving towards", "Missed mark", "Correct"); if (pause) { this._sleep(2500); }
+			
+			// Use the distance change to make the turn sharper if there's a greater jump
+			this._rotate(side_modifier * (-travel_rotate - distance_change));
+			this._travel(travel_distance);
+		} else if (distance_change < 0 && distance > this.MAXIMUM_DESIRED_WALL_DISTANCE) {
+			// Moving towards, not at mark yet
+			
+			this._log("Moving towards", "Not at mark", "Hold"); if (pause) { this._sleep(2500); }
+			
+			this._travel(travel_distance);
+		} else if (distance_change == 0 || distance == this.MAXIMUM_DESIRED_WALL_DISTANCE) {
+			// We're there, hold
+			
+			this._log("No movement", "Mark", "Hold"); if (pause) { this._sleep(2500); }
+			
+			this._travel(travel_distance);
 		}
 		
-		this._travel(travel_distance);
+		this._wallDistance = distance;
+		
+//		if (this._wallDistance < 0) {
+//			// Note the distance to the wall when we start following it
+//			this._wallDistance = distance;
+//			this._heading = 0; // We know we're parallel
+//		} else if (this._wallDistance > lost_distance && distance > lost_distance) {
+//			// The wall is too far, we're lost, reset
+//			this._actStartup();
+//			return;
+//		} else if (distance > this._wallDistance + corner_distance) {
+//			// Lost the wall, probably a corner, move into it
+//			this._rotate(side_modifier * 45);
+//			this._wallDistance = -1;
+//		} else if (distance - this.DESIRED_WALL_DISTANCE > 0) {
+//		//} else if (distance > this._wallDistance + error_distance || distance > this._wallDistance - error_distance) {
+//			// Moving away from the wall, correct it
+//			this._log("Scan point: " + side_modifier * 90, "Distance: " + distance, "Relative: " + Math.abs(distance - this.DESIRED_WALL_DISTANCE), "Need move towards");
+//			this._rotate(side_modifier * 3);
+//			this._wallDistance = distance;
+//			this._heading -= 10;
+//		} else if (distance - this.DESIRED_WALL_DISTANCE < 0) {
+//		//} else if (distance < this._wallDistance + error_distance || distance < this._wallDistance - error_distance) {
+//			// Moving closer to the wall, correct it
+//			this._log("Scan point: " + side_modifier * 90, "Distance: " + distance, "Relative: " + Math.abs(distance - this.DESIRED_WALL_DISTANCE), "Need move away");
+//			this._rotate(side_modifier * -3);
+//			this._wallDistance = distance;
+//			this._heading += 10;
+//		}
+		
+//		this._travel(travel_distance);
 	}
 	
 	/**
@@ -175,11 +267,11 @@ public class Arthur {
 			this._actCollisionBoth();
 		} else {
 			int angle = 90;
-			this._wallSide = COLLISION_RIGHT;
+			this._wallSide = RIGHT;
 			
 			if (left_distance < right_distance) {
 				angle *= -1;
-				this._wallSide = COLLISION_LEFT;
+				this._wallSide = LEFT;
 			}
 			
 			this._travel(-0.5f);
@@ -195,10 +287,10 @@ public class Arthur {
 	 */
 	protected void _actCollisionSingle(int side) {
 		int side_modifier = 0;
-		if (side == COLLISION_LEFT) {
+		if (side == LEFT) {
 			this._log("ACT: COLLISION L");
 			side_modifier = -1;
-		} else if (side == COLLISION_RIGHT) {
+		} else if (side == RIGHT) {
 			this._log("ACT: COLLISION R");
 			side_modifier = 1;
 		} else {
@@ -258,9 +350,12 @@ public class Arthur {
 		int closestTacho = 0;
 		int measurement = 255;
 		
-		this._resetHead();
+		if (this._shouldQuit()) { this._actFinish(); }
 		
-		this._headMotor.rotate(tacho, true);
+		int current_tacho = this._headMotor.getTachoCount();
+		int initial_tacho = tacho - current_tacho;
+		
+		this._headMotor.rotate(initial_tacho, true);
 		while (this._headMotor.isMoving()) {
 			measurement = this._headSensor.getDistance();
 			if (measurement < closestDistance) {
@@ -271,8 +366,12 @@ public class Arthur {
 			}
 		}
 		
+		if (this._shouldQuit()) { this._actFinish(); }
+		
 		if (both) {
 			this._headMotor.rotate(-tacho);
+			
+			if (this._shouldQuit()) { this._actFinish(); }
 			
 			this._headMotor.rotate(-tacho, true);
 			while (this._headMotor.isMoving()) {
@@ -284,11 +383,15 @@ public class Arthur {
 					this._log("SCAN: " + closestDistance + "@" + this._tachoToDegrees(closestTacho) + "DEG");
 				}
 			}
+			
+			if (this._shouldQuit()) { this._actFinish(); }
 
 			this._headMotor.rotate(tacho, true);
 		} else {
 			this._headMotor.rotate(-tacho, true);
 		}
+		
+		if (this._shouldQuit()) { this._actFinish(); }
 		
 		return closestTacho;
 	}
@@ -310,10 +413,18 @@ public class Arthur {
 			tacho = tacho - current_tacho;
 		}
 		
-		int distance;
-		
 		this._headMotor.rotate(tacho);
-		distance = this._headSensor.getDistance();
+		int distance = this._headSensor.getDistance();;
+		
+		// Try three times to get a sensible reading
+		for (int i = 0; i < 3; i++) {
+			if (distance < 255) {
+				return distance;
+			} else {
+				this._sleep(50);
+				distance = this._headSensor.getDistance();
+			}
+		}
 		
 		return distance;
 	}
