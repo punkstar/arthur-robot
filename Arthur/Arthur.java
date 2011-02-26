@@ -20,7 +20,10 @@ public class Arthur {
 	protected static final int COLLISION_BOTH = 5;
 	
 	// This is the value, in tachos, of a 90 degress rotation from 0 tachos
-	protected static final int DEGREES_90 = 1700; // 4900;
+	protected static final int DEGREES_90 = 120;
+	
+	protected static final int MOTOR_TURN_SPEED = 360;
+	protected static final int MOTOR_SCAN_SPEED = 90;
 	
 	protected Pilot _pilot;
 	
@@ -50,7 +53,7 @@ public class Arthur {
 		this._headMotor = Motor.B;
 		
 		this._headMotor.resetTachoCount();
-		this._headMotor.setSpeed(1440);
+		this._headMotor.setSpeed(MOTOR_TURN_SPEED);
 		
 		this._pilot = new TachoPilot(0.56f, 1.18f, this._leftMotor, this._rightMotor);
 	}
@@ -217,9 +220,6 @@ public class Arthur {
 			// collided, therefore ignore scan data
 			rotation_angle = side_modifier * 15;
 			this._log("SCAN INCONCLUSIVE");
-		} else {
-			// Compensate for oversteer
-			rotation_angle *= 0.9;
 		}
 		
 		this._travel(-0.5f);
@@ -255,33 +255,51 @@ public class Arthur {
 	 */
 	protected int _scanRange(int tacho, boolean both) {
 		int closestDistance = 255;
-		int closestTacho = 0;
+		int closestTachoStart = 0;
+		int closestTachoEnd = 0;
+		boolean recordTacho = false;
 		int measurement = 255;
 		
 		this._resetHead();
+		this._headMotor.setSpeed(MOTOR_SCAN_SPEED);
 		
 		this._headMotor.rotate(tacho, true);
 		while (this._headMotor.isMoving()) {
 			measurement = this._headSensor.getDistance();
 			if (measurement < closestDistance) {
 				closestDistance = measurement;
-				closestTacho = this._headMotor.getTachoCount();
+				closestTachoStart = this._headMotor.getTachoCount();
+				closestTachoEnd = closestTachoStart;
+				recordTacho = true;
 				
-				this._log("SCAN: " + closestDistance + "@" + this._tachoToDegrees(closestTacho) + "DEG");
+			} else if (measurement > closestDistance) {
+				recordTacho = false;
+			}
+			if (recordTacho) {
+				closestTachoEnd = this._headMotor.getTachoCount();
+				this._log("SCAN: " + closestDistance + "@" + this._tachoToDegrees(closestTachoEnd) + "DEG");
 			}
 		}
 		
 		if (both) {
 			this._headMotor.rotate(-tacho);
 			
+			recordTacho = false;
+			
 			this._headMotor.rotate(-tacho, true);
 			while (this._headMotor.isMoving()) {
 				measurement = this._headSensor.getDistance();
 				if (measurement < closestDistance) {
 					closestDistance = measurement;
-					closestTacho = this._headMotor.getTachoCount();
+					closestTachoStart = this._headMotor.getTachoCount();
+					closestTachoEnd = closestTachoStart;
 					
-					this._log("SCAN: " + closestDistance + "@" + this._tachoToDegrees(closestTacho) + "DEG");
+				} else if (measurement > closestDistance) {
+					recordTacho = false;
+				}
+				if (recordTacho) {
+					closestTachoEnd = this._headMotor.getTachoCount();
+					this._log("SCAN: " + closestDistance + "@" + this._tachoToDegrees(closestTachoEnd) + "DEG");
 				}
 			}
 
@@ -290,7 +308,7 @@ public class Arthur {
 			this._headMotor.rotate(-tacho, true);
 		}
 		
-		return closestTacho;
+		return closestTachoStart + (closestTachoEnd - closestTachoStart) / 2;
 	}
 	
 	
@@ -301,6 +319,7 @@ public class Arthur {
 	 * @return
 	 */
 	protected int _scanPoint(int tacho) {
+		this._headMotor.setSpeed(MOTOR_TURN_SPEED);
 	
 		// Adjust the rotation angle if the head is not straight
 		// (saves waiting for the head to return if we need it on the same side)
@@ -438,6 +457,7 @@ public class Arthur {
 	 */
 	protected void _resetHead() {
 		this._headMotor.stop();
+		this._headMotor.setSpeed(MOTOR_TURN_SPEED);
 		
 		int angle = this._headMotor.getTachoCount();
 		angle = -angle;
