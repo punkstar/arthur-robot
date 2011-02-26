@@ -15,8 +15,8 @@ public class Arthur {
     }
 	
 	protected static final int COLLISION_NONE = 0;
-	protected static final int COLLISION_LEFT = 3;
-	protected static final int COLLISION_RIGHT = 4;
+	protected static final int SIDE_LEFT = 3;
+	protected static final int SIDE_RIGHT = 4;
 	protected static final int COLLISION_BOTH = 5;
 	
 	// This is the value, in tachos, of a 90 degress rotation from 0 tachos
@@ -24,6 +24,8 @@ public class Arthur {
 	
 	protected static final int MOTOR_TURN_SPEED = 360;
 	protected static final int MOTOR_SCAN_SPEED = 90;
+	
+	protected static final int DESIRED_WALL_DISTANCE = 15;
 	
 	protected Pilot _pilot;
 	
@@ -40,7 +42,6 @@ public class Arthur {
 	protected boolean _stalled = false;
 	
 	protected int _wallSide;
-	protected int _wallDistance;
 	
 	public Arthur() {
 		this._leftBumper = new TouchSensor(SensorPort.S4);
@@ -70,6 +71,8 @@ public class Arthur {
 		//this._startCheckStalledThread();
 		
 		while(!this._shouldQuit()) {
+			this._actCheckFront();
+			
 			if (this._stalled) {
 				this._log("Stall detected");
 				this._travel(-1);
@@ -80,19 +83,16 @@ public class Arthur {
 				
 				if (this._isCollisionBoth()) {
 					this._log("COLLISION: BOTH");
-					this._wallDistance = -1;
 					this._wallSide = COLLISION_NONE;
 					this._actCollisionBoth();
 				} else if (this._isCollisionLeft()) {
 					this._log("COLLISION: LEFT");
-					this._wallDistance = -1;
-					this._wallSide = COLLISION_LEFT;
-					this._actCollisionSingle(COLLISION_LEFT);
+					this._wallSide = SIDE_LEFT;
+					this._actCollisionSingle(SIDE_LEFT);
 				} else if (this._isCollisionRight()) {
 					this._log("COLLISION: RIGHT");
-					this._wallDistance = -1;
-					this._wallSide = COLLISION_RIGHT;
-					this._actCollisionSingle(COLLISION_RIGHT);
+					this._wallSide = SIDE_RIGHT;
+					this._actCollisionSingle(SIDE_RIGHT);
 				} else {
 					this._log("COLLISION: NONE!?");
 					this._forward();
@@ -117,51 +117,75 @@ public class Arthur {
 		this._stop();
 		
 		this._wallSide = COLLISION_NONE;
-		this._wallDistance = -1;
 		
 		int angle = this._tachoToDegrees(this._scanRange(DEGREES_90, true));
 		this._log("ANGLE: " + angle);
 		
-		this._rotate(angle);
+		int distance = this._scanPoint(this._tachoToDegrees(angle));
+		
+		if (distance < DESIRED_WALL_DISTANCE + 3) {
+			// Next to a wall - align to it and follow it
+			int side_modifier = (angle > 0) ? -1 : 1;
+			this._wallSide = (side_modifier < 0) ? SIDE_LEFT : SIDE_RIGHT;
+			this._rotate((90 + side_modifier * angle) * side_modifier);
+		} else {
+			// No walls near - move to the nearest obstacle
+			this._rotate(angle);
+		}
+		
 		this._forward();
+	}
+	
+	/**
+	 * Action: Called when moving forward to avoid bumping into a wall.
+	 */
+	protected void _actCheckFront() {
+		int distance = this._scanPoint(0);
+		
+		if (distance < DESIRED_WALL_DISTANCE) {
+			// An obstacle ahead - act as if it was hit
+			this._log("Wall in front!");
+			this._stop();
+			this._actCollisionBoth();
+		}
 	}
 	
 	/**
 	 * Action: Called when Arthur knows there's a wall on one side and should follow it
 	 */
 	protected void _actFollow() {
-		this._stop();
-		int side_modifier = (this._wallSide == COLLISION_LEFT) ? 1 : -1;
+		int side_modifier = (this._wallSide == SIDE_LEFT) ? 1 : -1;
 		
-		int corner_distance = 5;
+		int corner_distance = 10;
 		int error_distance = 2;
-		int lost_distance = 50;
-		float travel_distance = 2.0f;
 		
 		int distance = this._scanPoint(this._degreesToTacho(side_modifier * 90));
 		
-		if (this._wallDistance < 0) {
-			// Note the distance to the wall when we start following it
-			this._wallDistance = distance;
-		} else if (this._wallDistance > lost_distance && distance > lost_distance) {
-			// The wall is too far, we're lost, reset
-			this._actStartup();
-			return;
-		} else if (distance > this._wallDistance + corner_distance) {
-			// Lost the wall, probably a corner, move into it
-			this._rotate(side_modifier * 45);
-			this._wallDistance = -1;
-		} else if (distance > this._wallDistance + error_distance) {
-			// Moving away from the wall, correct it
-			this._rotate(side_modifier * 10);
-			this._wallDistance = distance;
-		} else if (distance < this._wallDistance + error_distance) {
-			// Moving closer to the wall, correct it
-			this._rotate(side_modifier * -10);
-			this._wallDistance = distance;
+		if (distance != DESIRED_WALL_DISTANCE) {
+			this._stop();
+			// Repeat the check to make sure we got a good scan
+			int repeat = this._scanPoint(this._degreesToTacho(side_modifier * 90));
+			
+			if (distance - DESIRED_WALL_DISTANCE > corner_distance &&
+				repeat - DESIRED_WALL_DISTANCE > corner_distance) {
+				// The wall suddenly ended, probably a corner
+				this._turn(side_modifier * 2.0f, 90);
+			} else if (repeat != distance) {
+				// Either original or repeat scan failed - ignore them
+				// We don't care about this for the corners as the wall is not there anyway
+				this._log("Scan mismatch!");
+			} else if (distance < DESIRED_WALL_DISTANCE - error_distance) {
+				// Too close to a wall - move away
+				this._rotate(side_modifier * -10);
+			} else if (distance > DESIRED_WALL_DISTANCE + error_distance) {
+				// Too far from a wall - move into it
+				this._rotate(side_modifier * 10);
+			} else {
+				this._log("Following wall");
+			}
 		}
 		
-		this._travel(travel_distance);
+		this._forward();
 	}
 	
 	/**
@@ -178,11 +202,11 @@ public class Arthur {
 			this._actCollisionBoth();
 		} else {
 			int angle = 90;
-			this._wallSide = COLLISION_RIGHT;
+			this._wallSide = SIDE_RIGHT;
 			
 			if (left_distance < right_distance) {
 				angle *= -1;
-				this._wallSide = COLLISION_LEFT;
+				this._wallSide = SIDE_LEFT;
 			}
 			
 			this._travel(-0.5f);
@@ -194,14 +218,14 @@ public class Arthur {
 	/**
 	 * Action: Called when we have a collision on a single bumper
 	 * 
-	 * @param side The side the collision occurred, can be Arthur.COLLISION_LEFT or Arthur.COLLISION_RIGHT
+	 * @param side The side the collision occurred, can be Arthur.SIDE_LEFT or Arthur.SIDE_RIGHT
 	 */
 	protected void _actCollisionSingle(int side) {
 		int side_modifier = 0;
-		if (side == COLLISION_LEFT) {
+		if (side == SIDE_LEFT) {
 			this._log("ACT: COLLISION L");
 			side_modifier = -1;
-		} else if (side == COLLISION_RIGHT) {
+		} else if (side == SIDE_RIGHT) {
 			this._log("ACT: COLLISION R");
 			side_modifier = 1;
 		} else {
@@ -355,6 +379,16 @@ public class Arthur {
 		this._moving = true;
 		this._pilot.rotate(angle);
 		this._moving = false;
+	}
+	
+	/**
+	 * Pilot wrapper for travelling in an arc.
+	 *
+	 * @param radius The radius of the arc. Negative = turn right.
+	 * @param distance The distance (in degrees) to travel along the arc. Negative = backward.
+	 */
+	protected void _turn(float radius, float distance) {
+		this._pilot.arc(radius, distance);
 	}
 	
 	/**
