@@ -83,15 +83,12 @@ public class Arthur {
 				
 				if (this._isCollisionBoth()) {
 					this._log("COLLISION: BOTH");
-					this._wallSide = COLLISION_NONE;
 					this._actCollisionBoth();
 				} else if (this._isCollisionLeft()) {
 					this._log("COLLISION: LEFT");
-					this._wallSide = SIDE_LEFT;
 					this._actCollisionSingle(SIDE_LEFT);
 				} else if (this._isCollisionRight()) {
 					this._log("COLLISION: RIGHT");
-					this._wallSide = SIDE_RIGHT;
 					this._actCollisionSingle(SIDE_RIGHT);
 				} else {
 					this._log("COLLISION: NONE!?");
@@ -197,10 +194,23 @@ public class Arthur {
 		
 		this._log("LEFT: " + left_distance, "RIGHT: " + right_distance);
 		
-		if (left_distance < 10 && right_distance < 10) {
+		if (this._wallSide == SIDE_LEFT && right_distance > 30) {
+			// Continue following the wall on the left
+			this._travel(-0.5f);
+			this._rotate(-90);
+			this._forward();
+		} else if (this._wallSide == SIDE_RIGHT && left_distance > 30) {
+			// Continue following the wall on the right
+			this._travel(-0.5f);
+			this._rotate(90);
+			this._forward();
+		} else if (left_distance < 10 && right_distance < 10) {
+			// Seems like a dead end - move back
+			this._wallSide = COLLISION_NONE;
 			this._travel(-1);
 			this._actCollisionBoth();
 		} else {
+			// Turn to the side where there's more space
 			int angle = 90;
 			this._wallSide = SIDE_RIGHT;
 			
@@ -235,6 +245,9 @@ public class Arthur {
 			this._sleep(5000);
 			this._actFinish();
 		}
+		
+		// Note that we have a wall on one side
+		this._wallSide = side;
 		
 		int collision_tacho = this._scanRange(this._degreesToTacho(side_modifier * -90), false);
 		int rotation_angle = this._tachoToDegrees(side_modifier * this._degreesToTacho(90) + collision_tacho);
